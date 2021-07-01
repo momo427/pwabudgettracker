@@ -1,11 +1,60 @@
-const request = window.indexedDB.open("budget", 1);
+let db;
+// create a new db request 
+const request = indexedDB.open("budget", 1);
 
-request.onupgradeneeded = ({target}) => {
-const db = target.results;
-const objectStore = db.createObjectStore("budget");
-objectStore.createIndex("timestamp", "timestamp");
+request.onupgradeneeded = function (event) {
+
+    const db = event.target.result;
+    db.createObjectStore("money", {autoIncrement: true});
 };
 
-request.onsuccess = event => {
-    console.log(request.result);
+request.onsuccess = function (event) {
+        db = event.target.result;
+
+        if (navigator.onLine) {
+            checkDatabase();
+        }
+    };
+
+request.onerror = function (event) {
+    console.log("Error! " + event.target.errorCode);
 };
+
+function saveRecord(record) {
+
+    const transaction = db.transaction(["money"], "readwrite");
+
+    const store = transaction.objectStore("money");
+
+    store.add(record);
+}
+
+function checkDatabase() {
+    const transaction = db.transaction(["money"], "readwrite");
+
+    const store = transaction.objectStore("money");
+
+    const getAll = store.getAll();
+
+    getAll.onsuccess = function () {
+        if (getAll.result.length > 0) {
+            fetch("/api/transaction/bulk", {
+                method: "POST",
+                body: JSON.stringify(getAll.result),
+                headers: {
+                    Accept: "application/json, text/plain, */*",
+                    "Content-Type": "application/json"
+                }
+            })
+                .then(response => response.json())
+                .then(() => {
+                    const transaction = db.transaction(["money"], "readwrite");
+                    const store = transaction.objectStore("money");
+                    store.clear();
+                });
+        }
+    };
+}
+
+// listen for app coming back online
+window.addEventListener("online", checkDatabase);
