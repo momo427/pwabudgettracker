@@ -24,7 +24,7 @@ const FILES_TO_CACHE = [
   
     self.skipWaiting();
   });
-  
+  //Remove old cache data
   self.addEventListener("activate", function (evt) {
     evt.waitUntil(
       caches.keys().then(keyList => {
